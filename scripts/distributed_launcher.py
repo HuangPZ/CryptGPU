@@ -135,9 +135,9 @@ if __name__ == '__main__':
     username = "lisali12"
     password = ""
     hostnames = [
-        "c240g5-110201.wisc.cloudlab.us",
-        "c240g5-110205.wisc.cloudlab.us",
-        "c240g5-110209.wisc.cloudlab.us",
+        "10.10.1.1",
+        "10.10.1.2",
+        "10.10.1.3",
     ]
     master_ip_address = "10.10.1.1"
 

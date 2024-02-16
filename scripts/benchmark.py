@@ -21,9 +21,9 @@ import argparse
 
 from network import *
 
-def inference(model, input_size, batch_size=1, device="cuda"):
+def inference(model, input_size, batch_size=128, device="cuda"):
     comm.get().set_verbosity(True)
-
+    repeat_time = 1
     bs = batch_size
     if len(input_size) == 3:
         c, w, h = input_size
@@ -70,7 +70,7 @@ def inference(model, input_size, batch_size=1, device="cuda"):
         total_time = 0
         comm_time = 0
         conv_time, pool_time, relu_time, matmul_time = 0, 0, 0, 0
-        for i in range(6):
+        for i in range(repeat_time+1):
             comm.get().reset_communication_stats()
             
             tic = time.perf_counter()
@@ -93,11 +93,11 @@ def inference(model, input_size, batch_size=1, device="cuda"):
     if comm.get().get_rank() == 0:
         print("----------- Statistics ----------------")
         print(f"Total Communication: {comm.get().total_comm_bytes}")
-        print(f"Avg Runtime: {total_time / 5}")
-        print(f"Avg Comm: {comm_time / 5}")
-        print(f"Avg Linear: {conv_time + matmul_time/ 5}")
-        print(f"Avg ReLU: {relu_time / 5}")
-        print(f"Avg Pool: {pool_time / 5}")
+        print(f"Avg Runtime: {total_time / repeat_time}")
+        print(f"Avg Comm: {comm_time / repeat_time}")
+        print(f"Avg Linear: {conv_time + matmul_time/ repeat_time}")
+        print(f"Avg ReLU: {relu_time / repeat_time}")
+        print(f"Avg Pool: {pool_time / repeat_time}")
 
 
 def training(model, input_size, batch_size, num_classes, device="cuda"):
@@ -302,14 +302,15 @@ def train_all():
 
 def inference_all():
     inference_config = [
-        ["custom", "trans"],
+        
         ["mnist", "lenet"],
         ["mnist", "secureml"],
         ["mnist", "sarda"],
         ["mnist", "minionn"],
-        ["imagenet", "alexnet"],
-        ["imagenet", "vgg16"],
-        ["imagenet", "resnet18"],
+        ["cifar10", "alexnet"],
+        # ["cifar10", "vgg16"],
+        # ["imagenet", "resnet18"],
+        # ["custom", "trans"],
 
     ]
     for dataset, network in inference_config:
