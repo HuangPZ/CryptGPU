@@ -25,38 +25,70 @@ def inference(model, input_size, batch_size=1, device="cuda"):
     comm.get().set_verbosity(True)
 
     bs = batch_size
-    c, w, h = input_size
-    x = crypten.cryptensor(torch.rand((bs, c, w, h)), device=device, requires_grad=False)
+    if len(input_size) == 3:
+        c, w, h = input_size
+        x = crypten.cryptensor(torch.rand((bs, c, w, h)), device=device, requires_grad=False)
 
-    model = crypten.nn.from_pytorch(model, dummy_input=torch.empty(bs, c, w, h))
-    model = model.encrypt()
-    model = model.to(device) 
+        model = crypten.nn.from_pytorch(model, dummy_input=torch.empty(bs, c, w, h))
+        model = model.encrypt()
+        model = model.to(device) 
 
-    model.eval()
-    model.replicate_parameters()
+        model.eval()
+        model.replicate_parameters()
 
-    total_time = 0
-    comm_time = 0
-    conv_time, pool_time, relu_time, matmul_time = 0, 0, 0, 0
-    for i in range(6):
-        comm.get().reset_communication_stats()
-        
-        tic = time.perf_counter()
-        model(x)
-        toc = time.perf_counter()
+        total_time = 0
+        comm_time = 0
+        conv_time, pool_time, relu_time, matmul_time = 0, 0, 0, 0
+        for i in range(6):
+            comm.get().reset_communication_stats()
+            
+            tic = time.perf_counter()
+            model(x)
+            toc = time.perf_counter()
 
-        if i != 0:
-            total_time += toc - tic
-            comm_time += comm.get().comm_time
-            conv_time += comm.get().time_conv
-            relu_time += comm.get().time_relu
-            pool_time += comm.get().time_pool
-            matmul_time += comm.get().time_matmul
+            if i != 0:
+                total_time += toc - tic
+                comm_time += comm.get().comm_time
+                conv_time += comm.get().time_conv
+                relu_time += comm.get().time_relu
+                pool_time += comm.get().time_pool
+                matmul_time += comm.get().time_matmul
 
-            # if comm.get().get_rank() == 0:
-            #     print(f"Iteration {i} runtime: {toc - tic}")
+                # if comm.get().get_rank() == 0:
+                #     print(f"Iteration {i} runtime: {toc - tic}")
 
-        comm.get().print_total_communication()
+            comm.get().print_total_communication()
+    elif len(input_size) == 1:
+        x = crypten.cryptensor(torch.rand((1,bs, input_size[0])), device=device, requires_grad=False)
+        model = crypten.nn.from_pytorch(model, dummy_input=torch.empty(1,bs, input_size[0]))
+        model = model.encrypt()
+        model = model.to(device) 
+
+        model.eval()
+        model.replicate_parameters()
+
+        total_time = 0
+        comm_time = 0
+        conv_time, pool_time, relu_time, matmul_time = 0, 0, 0, 0
+        for i in range(6):
+            comm.get().reset_communication_stats()
+            
+            tic = time.perf_counter()
+            model(x)
+            toc = time.perf_counter()
+
+            if i != 0:
+                total_time += toc - tic
+                comm_time += comm.get().comm_time
+                conv_time += comm.get().time_conv
+                relu_time += comm.get().time_relu
+                pool_time += comm.get().time_pool
+                matmul_time += comm.get().time_matmul
+
+                # if comm.get().get_rank() == 0:
+                #     print(f"Iteration {i} runtime: {toc - tic}")
+
+            comm.get().print_total_communication()
 
     if comm.get().get_rank() == 0:
         print("----------- Statistics ----------------")
@@ -201,6 +233,13 @@ def select_model(dataset, network):
         num_classes = 10
         if network == "lenet":
             model = LeNet()
+        elif network == "secureml":
+            model = SecureML()
+        elif network == "sarda":
+            model = Sarda()
+        elif network == "minionn":
+            model = MiniONN()
+              
     elif dataset == "cifar10":
         input_size = (3,32,32)
         num_classes = 10
@@ -222,6 +261,9 @@ def select_model(dataset, network):
             model = AlexNet(num_classes=1000)
         elif network == "vgg16":
             model = VGG16(num_classes=1000)
+        elif network == "resnet18":
+            model = models.resnet18()
+            model.maxpool = nn.AvgPool2d(kernel_size=3, stride=2)
         elif network == "resnet34":
             model = models.resnet34()
             model.maxpool = nn.AvgPool2d(kernel_size=3, stride=2)
@@ -234,6 +276,12 @@ def select_model(dataset, network):
         elif network == "resnet152":
             model = models.resnet152()
             model.maxpool = nn.AvgPool2d(kernel_size=3, stride=2)
+    elif dataset == 'custom':
+        input_size = (280,)
+        num_classes = 1000
+        if network == "trans":
+            model = Trans()
+            # model.maxpool = nn.AvgPool2d(kernel_size=3, stride=2)
 
     return model, input_size, num_classes
 
@@ -254,16 +302,15 @@ def train_all():
 
 def inference_all():
     inference_config = [
+        ["custom", "trans"],
         ["mnist", "lenet"],
-        ["cifar10", "alexnet"],
-        ["cifar10", "vgg16"],
-        ["tinyin", "alexnet"],
-        ["tinyin", "vgg16"],
+        ["mnist", "secureml"],
+        ["mnist", "sarda"],
+        ["mnist", "minionn"],
         ["imagenet", "alexnet"],
         ["imagenet", "vgg16"],
-        ["imagenet", "resnet50"],
-        ["imagenet", "resnet101"],
-        ["imagenet", "resnet152"]
+        ["imagenet", "resnet18"],
+
     ]
     for dataset, network in inference_config:
         model, input_size, num_classes = select_model(dataset, network)

@@ -132,14 +132,14 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
 
-    username = "root"
-    password = "password"
+    username = "lisali12"
+    password = ""
     hostnames = [
-        "example1.server.com",
-        "example2.server.com",
-        "example3.server.com",
+        "c240g5-110201.wisc.cloudlab.us",
+        "c240g5-110205.wisc.cloudlab.us",
+        "c240g5-110209.wisc.cloudlab.us",
     ]
-    master_ip_address = "1.1.1.1"
+    master_ip_address = "10.10.1.1"
 
     client_dict = {}
     for hostname in hostnames:

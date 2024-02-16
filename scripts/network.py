@@ -126,3 +126,80 @@ class VGG16(nn.Module):
         x = self.vgg.features(x)
         x = self.classifier(x)
         return x
+    
+class SecureML(nn.Module):
+    def __init__(self, num_classes=10):
+        super(SecureML, self).__init__()
+    
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(784, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 10),
+            nn.ReLU(),
+        )
+    def forward(self, x):
+        x = self.classifier(x)
+        return x
+    
+    
+class Sarda(nn.Module):
+    def __init__(self, num_classes=10):
+        super(Sarda, self).__init__()
+    
+        self.classifier = nn.Sequential(
+            nn.Conv2d(1, 5, kernel_size=2, stride=2, padding=0),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(980, 100),
+            nn.ReLU(),
+            nn.Linear(100, 10),
+        )
+    def forward(self, x):
+        x = self.classifier(x)
+        return x
+    
+class MiniONN(nn.Module):
+    def __init__(self, num_classes=10):
+        super(MiniONN, self).__init__()
+    
+        self.classifier = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=5, stride=1, padding=0),
+            nn.AvgPool2d(kernel_size=2, stride=2),  #MaxPool2d(kernel_size=2, stride=2); Crypten not implemted
+            nn.ReLU(),
+            nn.Conv2d(16, 16, kernel_size=5, stride=1, padding=0),
+            nn.AvgPool2d(kernel_size=2, stride=2),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(4*4*16, 100),
+            nn.ReLU(),
+            nn.Linear(100, 10),
+            nn.ReLU(),
+        )
+    def forward(self, x):
+        x = self.classifier(x)
+        return x
+    
+class ResNet(nn.Module):
+    def __init__(self, num_classes=10):
+        super(ResNet, self).__init__()
+    
+        self.resnet = models.resnet18(pretrained=False)
+        
+    def forward(self, x):
+        x = self.resnet(x)
+        return x
+    
+class Trans(nn.Module):  
+    def __init__(self, num_classes=10):
+        super(Trans, self).__init__()
+        # self.trans = nn.Transformer(d_model=280, nhead=2, num_encoder_layers=1, num_decoder_layers=2, 
+        #                             dim_feedforward=200)
+        self.trans = torch.nn.MultiheadAttention(embed_dim=280, num_heads=2)
+        
+    
+    def forward(self, x):
+        output_tensor, weights = self.trans(x,x,x)
+        return output_tensor
