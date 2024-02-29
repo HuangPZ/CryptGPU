@@ -84,7 +84,7 @@ def parse_args():
     parser.add_argument(
         "--master_port",
         type=int,
-        default=29500,
+        default=29501,
         help="The port used by master instance " "for distributed training",
     )
 

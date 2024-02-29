@@ -20,7 +20,8 @@ class LeNet(nn.Module):
             nn.Flatten(),
             nn.Linear(800, 500),
             nn.ReLU(),
-            nn.Linear(500, 10)
+            nn.Linear(500, 10),
+            nn.Softmax(dim=-1),
         )
 
     def forward(self, x):
@@ -203,3 +204,18 @@ class Trans(nn.Module):
     def forward(self, x):
         output_tensor, weights = self.trans(x,x,x)
         return output_tensor
+    
+class Word2Vec(nn.Module):
+    def __init__(self):
+        super(Word2Vec, self).__init__()
+        self.model = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(25600, 300),
+            nn.Linear(300, 200),
+            nn.Softmax(dim=-1),
+        )
+
+    def forward(self, x):
+        x = self.model(x)
+        # x = F.softmax(x, dim=-1)
+        return x

@@ -21,7 +21,7 @@ import argparse
 
 from network import *
 
-def inference(model, input_size, batch_size=128, device="cuda"):
+def inference(model, input_size, batch_size=4, device="cuda"):
     comm.get().set_verbosity(True)
     repeat_time = 1
     bs = batch_size
@@ -53,28 +53,34 @@ def inference(model, input_size, batch_size=128, device="cuda"):
                 relu_time += comm.get().time_relu
                 pool_time += comm.get().time_pool
                 matmul_time += comm.get().time_matmul
+                comm_bytes = comm.get().comm_bytes
 
                 # if comm.get().get_rank() == 0:
                 #     print(f"Iteration {i} runtime: {toc - tic}")
 
             comm.get().print_total_communication()
     elif len(input_size) == 1:
-        x = crypten.cryptensor(torch.rand((1,bs, input_size[0])), device=device, requires_grad=False)
-        model = crypten.nn.from_pytorch(model, dummy_input=torch.empty(1,bs, input_size[0]))
+        x = crypten.cryptensor(torch.randint(0,280,(1,bs, input_size[0])), device=device, requires_grad=False)
+        model = crypten.nn.from_pytorch(model, dummy_input=torch.empty((1,bs, input_size[0]),dtype=torch.long))
         model = model.encrypt()
         model = model.to(device) 
-
+        x = x.long()
         model.eval()
         model.replicate_parameters()
 
         total_time = 0
         comm_time = 0
         conv_time, pool_time, relu_time, matmul_time = 0, 0, 0, 0
+        criterion = crypten.nn.CrossEntropyLoss()
+        labels =  torch.ones(bs, requires_grad=False).long().to(device)
+        labels = F.one_hot(labels, num_classes=280)
+        labels = crypten.cryptensor(labels, src=0)
         for i in range(repeat_time+1):
             comm.get().reset_communication_stats()
             
             tic = time.perf_counter()
-            model(x)
+            output = model(x)
+            loss = criterion(output, labels)
             toc = time.perf_counter()
 
             if i != 0:
@@ -83,6 +89,7 @@ def inference(model, input_size, batch_size=128, device="cuda"):
                 conv_time += comm.get().time_conv
                 relu_time += comm.get().time_relu
                 pool_time += comm.get().time_pool
+                comm_bytes = comm.get().comm_bytes
                 matmul_time += comm.get().time_matmul
 
                 # if comm.get().get_rank() == 0:
@@ -92,12 +99,14 @@ def inference(model, input_size, batch_size=128, device="cuda"):
 
     if comm.get().get_rank() == 0:
         print("----------- Statistics ----------------")
-        print(f"Total Communication: {comm.get().total_comm_bytes}")
+        print(f"Total Communication: {comm.get().total_comm_bytes/1024**2/ repeat_time} MB")
+        # print(f"Total Comm Amount: {comm.get().comm_bytes}")
         print(f"Avg Runtime: {total_time / repeat_time}")
         print(f"Avg Comm: {comm_time / repeat_time}")
         print(f"Avg Linear: {conv_time + matmul_time/ repeat_time}")
         print(f"Avg ReLU: {relu_time / repeat_time}")
         print(f"Avg Pool: {pool_time / repeat_time}")
+        
 
 
 def training(model, input_size, batch_size, num_classes, device="cuda"):
@@ -277,11 +286,13 @@ def select_model(dataset, network):
             model = models.resnet152()
             model.maxpool = nn.AvgPool2d(kernel_size=3, stride=2)
     elif dataset == 'custom':
-        input_size = (280,)
-        num_classes = 1000
+        input_size = (1,160,160)
+        num_classes = 100
         if network == "trans":
             model = Trans()
             # model.maxpool = nn.AvgPool2d(kernel_size=3, stride=2)
+        elif network == "word2vec":
+            model = Word2Vec()
 
     return model, input_size, num_classes
 
@@ -303,13 +314,15 @@ def train_all():
 def inference_all():
     inference_config = [
         
-        ["mnist", "lenet"],
-        ["mnist", "secureml"],
-        ["mnist", "sarda"],
-        ["mnist", "minionn"],
-        ["cifar10", "alexnet"],
+        # ["mnist", "lenet"],
+        # ["mnist", "secureml"],
+        # ["mnist", "sarda"],
+        # ["mnist", "minionn"],
+        # ["cifar10", "alexnet"],
         # ["cifar10", "vgg16"],
         # ["imagenet", "resnet18"],
+        ["custom", "word2vec"],
+        
         # ["custom", "trans"],
 
     ]
